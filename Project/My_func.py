@@ -4,6 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.externals import joblib
+from utilities import get_model_path, format_predicate_to_pd, get_train_dataset_path
+import os
 
 # Choose GBDT Regression model as baseline
 # my_model = GradientBoostingRegressor()
@@ -12,7 +14,7 @@ from sklearn.externals import joblib
 # Training Step
 def my_train_func(station):
     global my_model
-    train_data = pd.read_csv('train-dataset/point_date_' + station + '.csv')
+    train_data = pd.read_csv(get_train_dataset_path(station))
     train_data_Y = train_data['actualPowerGeneration']
 
     # Drop some non-relative factors
@@ -34,18 +36,20 @@ def my_train_func(station):
 
     # Output model to global variation
     # my_model = myGBR
-    _ = joblib.dump(myGBR, 'model/model.pkl', compress=9)
-
-
-
+    _ = joblib.dump(myGBR, get_model_path(station), compress=9)
 
     print('Training completed. MSE on validation set is {}'.format(mean_squared_error(Y_test, Y_pred)))
     print('Factors below are used: \n{}'.format(list(X_train.columns)))
 
 
-def my_spredict_func(input_file, output_file):
-
+def my_spredict_func(input_file, station, output_file):
     # Clean test data
+    if not os.path.exists(get_model_path(station)):
+        print('The model for station : {} not exists, system will first train for this'.format(station))
+        my_train_func(station)
+
+    assert os.path.exists(get_model_path(station))
+
     columns = 'Time,longitude,latitude,directRadiation,scatterdRadiation,windSpeed,airTransparency,airDensity'
     columns = list(columns.split(','))
     test_data = pd.read_csv('test-dataset/' + input_file, names=columns)
@@ -73,13 +77,12 @@ def my_spredict_func(input_file, output_file):
 
     test_data = test_data.iloc[time_point - 48:time_point + 47]
 
-    my_model = joblib.load('model/model.pkl')
+    my_model = joblib.load(get_model_path(station))
 
     result = my_model.predict(test_data)
     print('Short prediction of power generation in nearest 96 time points:\n{}'.format(result))
-    np.savetxt('output/' + output_file, result)
-
-
+    result_dataframe = format_predicate_to_pd(test_data, result)
+    result_dataframe.to_excel(open('output/short'+output_file), header=False)
 
 
 def my_sspredict_func(input_file, output_file):
@@ -106,6 +109,7 @@ def my_sspredict_func(input_file, output_file):
 
     result = my_model.predict(test_data)
     print('Super short prediction of power generation in nearest 16 time points:\n{}'.format(result))
-    np.savetxt('output/' + output_file, result)
+    result_dataframe = format_predicate_to_pd(test_data, result)
+    result_dataframe.to_excel(open('output/supershort'+output_file), header=False)
 
 

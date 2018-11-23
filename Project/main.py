@@ -21,7 +21,7 @@ def main():
         my_train_func(options.station)
     elif options.type == 'test':
         if options.length == 'short':
-            my_spredict_func(options.predicate,options.file_name)
+            my_spredict_func(options.predicate, options.station, options.file_name)
         elif options.length == 'super-short':
             my_sspredict_func(options.predicate, options.file_name)
 
